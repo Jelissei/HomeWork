@@ -1,0 +1,6 @@
+---
+- name: Install Graylog
+  hosts: all
+  become: true
+  roles:
+   - role: graylog

@@ -1,0 +1,110 @@
+---
+#- name: Apt update
+#  become: true
+#  apt: 
+#    update_cache: yes
+
+- name: Touch files
+  file:
+    path: /etc/apt/sources.list.d/backports.list
+    state: touch
+    owner: it
+    group: it
+    mode: '0777'
+  
+- name: Touch files2
+  file:
+    path: /etc/apt/sources.list.d/elasticsearch-2.list
+    state: touch
+    owner: it
+    group: it
+    mode: '0777'
+
+- name: Add string to files
+  lineinfile:
+    destfile: /etc/apt/sources.list.d/backports.list
+    line: "deb http://ftp.debian.org/debian jessie-backports main"
+    state: present
+  
+- name: Add string to files2
+  lineinfile:
+    destfile: /etc/apt/sources.list.d/elasticsearch-2.list
+    line: "deb https://packages.elastic.co/elasticsearch/2.x/debian stable main"
+    state: present
+
+- name: Get URL
+  get_url:
+    url: https://packages.elastic.co/GPG-KEY-elasticsearch
+    dest: /etc/elastic.conf
+
+- name: Get URL2
+  get_url:
+    url: https://packages.graylog2.org/repo/packages/graylog-2.2-repository_latest.deb
+    dest: /home/it/packagedir/
+    mode: "0777"
+
+- name: Dpkg
+  dpkg_selections:
+    name: graylog-2.2-repository_latest.deb
+    selection: hold
+
+- name: Add apt-key
+  apt_key:
+    url: https://packages.elastic.co/GPG-KEY-elasticsearch
+    #state: present
+
+- name: Install packages
+  apt:
+    name: "{{ pkg }}"
+    state: latest
+  #with_items: "{{ pkg }}"
+
+- name: Start elasticsearch
+  systemd:
+    state: started
+    name: elasticsearch
+    enabled: yes
+
+- name: Edit elasticsearch.yml
+  lineinfile:
+    destfile: /etc/elasticsearch/elasticsearch.yml
+    line: "{{ item }}"
+  with_items:
+    - 'cluster.name: graylog'
+    - 'network.host: 127.0.0.1'
+    - 'discovery.zen.ping.timeout: 10s'
+    - 'discovery.zen.ping.multicast.enabled: false'
+    - 'discovery.zen.ping.unicast.hosts: ["127.0.0.1:9300"]'
+    - 'script.inline: false'
+    - 'script.indexed: false'
+    - 'script.file: false'
+
+- name: Restart elasticsearch
+  systemd:
+    name: elasticsearch
+    state: restarted
+
+- name: Delete server.conf
+  file:
+    path: /etc/graylog/server/server.conf
+    state: absent
+
+- name: Recreate server.conf
+  file:
+    path: /etc/graylog/server/server.conf
+    state: touch
+    owner: it
+    group: it
+    mode: '0777'
+
+- name: Edit server.conf
+  lineinfile:
+    destfile: /etc/graylog/server/server.conf
+    line: "{{ item }}"
+  with_items: "{{ tekst }}"
+
+- name: Start graylog-server
+  systemd:
+    name: graylog-server.service
+    state: started
+    enabled: yes
