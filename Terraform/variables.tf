@@ -15,7 +15,7 @@ variable "login" {
 }
 
 variable "password" {
-    default = "Passw0rd@13"
+    default = "Passw0rd"
 }
 
 variable "vnetName" {
